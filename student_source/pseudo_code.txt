@@ -1,0 +1,6 @@
+/* creating a routing database */
+
+Function BinarySearch(D)
+Initialize search range R, BMP
+
+/* Print */
