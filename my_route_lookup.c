@@ -2,9 +2,9 @@
 #include "utils.h"
 
 unsigned short Table1[0x1000000];
-unsigned short *Table2;
+unsigned short *Table2; // dynamic memory allocation
 
-int insertion()
+int insertion() // fill the tables with the routing table
 {
 	uint32_t prefix;
 	int prefixLength, outInterface;
@@ -63,22 +63,21 @@ int main(int ac, char **av)
 	int totalTableAccess = 0;
 	int totalPackets = 0;
 
-	Table2 = (unsigned short *)malloc(0);
-	
+	Table2 = (unsigned short *)malloc(0); // initial allocation of table 2
 	row = insertion();
 
 	while (!(result = readInputPacketFileLine(&IPAddress))) {
 		clock_gettime(CLOCK_MONOTONIC, &initialTime);
 		idx = IPAddress >> 8;
-		if (!(Table1[idx] >> 15)) { // table2 doesn't exist
+		if (!(Table1[idx] >> 15)) { // if 2nd table entry doesn't exist
 			out = Table1[idx];
 			accessedTable = 1;
 		}
-		else {
+		else { // if 2nd table entry exists
 			out = Table2[(Table1[idx] - 32768) * 256 + IPAddress - ((IPAddress >> 8) << 8)];
 			accessedTable = 2;
 		}
-		clock_gettime(CLOCK_MONOTONIC, &finalTime);
+		clock_gettime(CLOCK_MONOTONIC, &finalTime); // to measure the processing time
 		printOutputLine(IPAddress, out, &initialTime, &finalTime, &searchingTime, accessedTable);
 		totalProcessTime += searchingTime;
 		totalTableAccess += accessedTable;
