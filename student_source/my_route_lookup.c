@@ -9,6 +9,13 @@
 unsigned short Table1[0x1000000];
 unsigned short Table2[0x1000000];
 
+void printing_tables()
+{
+	for (int i = 0; i < 100; i++){
+		printf("Table1[%d] = %d\n", i, Table1[i]);
+	}
+}
+
 /*
 	level1: prefix length == 24
 	24보다 길면 level2로!
@@ -70,11 +77,13 @@ int main(int ac, char **av)
 	int totalProcessTime = 0;
 	int totalTableAccess = 0;
 	int totalPackets = 0;
+	int flag = 0;
 	
 	row = insertion();
 
 	while (!(result = readInputPacketFileLine(&IPAddress))) {
 		clock_gettime(CLOCK_MONOTONIC, &initialTime);
+		flag = 0;
 		for (i = 24; i > 0; i--) {
 			getNetmask(i, &netmask);
 			idx = (netmask & IPAddress) >> 8;
@@ -82,21 +91,25 @@ int main(int ac, char **av)
 				if (Table1[idx]) {
 					out = Table1[idx];
 					accessedTable = 1;
+					flag = 1;
 					break;
 				}
 			}
 			else {
 				out = Table2[(Table1[idx] - 32768) * 256 + IPAddress - ((IPAddress >> 8) << 8)];
 				accessedTable = 2;
+				flag = 1;
 				break;
 			}
 		}
+		if (!flag)
+			out = 0;
 		clock_gettime(CLOCK_MONOTONIC, &finalTime);
 		printOutputLine(IPAddress, out, &initialTime, &finalTime, &searchingTime, accessedTable);
 		totalProcessTime += searchingTime;
 		totalTableAccess += accessedTable;
 		++totalPackets;
 	}
-	freeIO();
 	printSummary(totalPackets, (double)totalTableAccess / totalPackets, (double)totalProcessTime / totalPackets);
+	freeIO();
 }
