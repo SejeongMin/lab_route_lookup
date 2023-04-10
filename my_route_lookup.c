@@ -4,7 +4,7 @@
 unsigned short Table1[0x1000000];
 unsigned short *Table2; // dynamic memory allocation
 
-int insertion() // fill the tables with the routing table
+void insertion() // fill the tables with the routing table
 {
 	uint32_t prefix;
 	int prefixLength, outInterface;
@@ -47,14 +47,13 @@ int insertion() // fill the tables with the routing table
 		printIOExplanationError(result);
 		exit(1);
 	}
-	return row;
 }
 
 int main(int ac, char **av)
 {
 	initializeIO(av[1], av[2]);
 	uint32_t IPAddress;
-	int idx, result, row;
+	int idx, result;
 	struct timespec initialTime, finalTime;
 	double searchingTime;
 	int accessedTable;
@@ -64,7 +63,7 @@ int main(int ac, char **av)
 	int totalPackets = 0;
 
 	Table2 = (unsigned short *)malloc(0); // initial allocation of table 2
-	row = insertion();
+	insertion();
 
 	while (!(result = readInputPacketFileLine(&IPAddress))) {
 		clock_gettime(CLOCK_MONOTONIC, &initialTime);
