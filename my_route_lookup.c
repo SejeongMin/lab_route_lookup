@@ -1,27 +1,8 @@
-/*
-	usage: <FIB FILE> <INPUT FILE>
-	ex) my_route_lookup routing_table.txt prueba0.txt
-*/
-
 #include "io.h"
 #include "utils.h"
 
 unsigned short Table1[0x1000000];
 unsigned short Table2[0x1000000];
-
-void printing_tables()
-{
-	for (int i = 0; i < 100; i++){
-		printf("Table1[%d] = %d\n", i, Table1[i]);
-	}
-}
-
-/*
-	level1: prefix length == 24
-	24보다 길면 level2로!
-
-	만약 x.x.x.x/23 --> 라우팅 테이블에 x.x.x0. & x.x.x1. 채우기........?????????????????????????????????????
-*/
 
 int insertion()
 {
@@ -31,7 +12,7 @@ int insertion()
 	int row = 0;
 	int N;
 	int pre;
-	int ddd;
+	int idx2;
 
 	while (!(result = readFIBLine(&prefix, &prefixLength, &outInterface))) {
 		pre = prefix >> 8;
@@ -43,16 +24,16 @@ int insertion()
 		else {
 			if (Table1[pre] >> 15) { // If there is already a link to 2nd level (ppt pg.39)
 				N = Table1[pre] - 32768;
-				ddd = N * 256 + prefix - (pre << 8);
+				idx2 = N * 256 + prefix - (pre << 8);
 				for (int i = 0; i < pow(2, (8 - (prefixLength - 24))); i++) {
-					Table2[ddd++] = outInterface;
+					Table2[idx2++] = outInterface;
 				}
 			}
 			else {
 				Table1[pre] = row + 32768;
-				ddd = row * 256 + prefix - (pre << 8); // think
+				idx2 = row * 256 + prefix - (pre << 8); // think
 				for (int i = 0; i < pow(2, (8 - (prefixLength - 24))); i++) {
-					Table2[ddd++] = outInterface;
+					Table2[idx2++] = outInterface;
 				}
 				row++;
 			}
