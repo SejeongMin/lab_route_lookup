@@ -6,10 +6,8 @@
 #include "io.h"
 #include "utils.h"
 
-// void getNetmask(int prefixLength, int *netmask)
-// TODO: global variable (table to fill in)
-short Table1[0x1000000]; // nol
-short Table2[0x1000000];
+unsigned short Table1[0x1000000];
+unsigned short Table2[0x1000000];
 
 /*
 	level1: prefix length == 24
@@ -20,27 +18,38 @@ short Table2[0x1000000];
 
 int insertion()
 {
-	uint32_t prefix, prefixLength, outInterface;
+	uint32_t prefix;
+	int prefixLength, outInterface;
 	int result;
 	int row = 0;
-	int idx;
+	int N;
 	int pre;
+	int ddd;
 
-	while (!(result = readFIBLine(prefix, prefixLength, outInterface))) {
+	while (!(result = readFIBLine(&prefix, &prefixLength, &outInterface))) {
 		pre = prefix >> 8;
 		if (prefixLength <= 24) {
 			for (int i = 0; i < pow(2, (24 - prefixLength)); i++) {
-				Table1[pre] = outInterface;
+				Table1[pre++] = outInterface;
 			}
 		}
 		else {
-			idx = pre / 256;
-			Table1[pre] = idx;
-			for (int i = 0; i < pow(2, (8 - (prefixLength - 24))); i++) {
-				Table2[idx * 256 + prefix - (pre << 8)];
+			if (Table1[pre] >> 15) { // If there is already a link to 2nd level (ppt pg.39)
+				N = Table1[pre] - 32768;
+				ddd = N * 256 + prefix - (pre << 8);
+				for (int i = 0; i < pow(2, (8 - (prefixLength - 24))); i++) {
+					Table2[ddd++] = outInterface;
+				}
+			}
+			else {
+				Table1[pre] = row + 32768;
+				ddd = row * 256 + prefix - (pre << 8); // think
+				for (int i = 0; i < pow(2, (8 - (prefixLength - 24))); i++) {
+					Table2[ddd++] = outInterface;
+				}
+				row++;
 			}
 		}
-		row++;
 	}
 	if (result < 0 && result != REACHED_EOF) {
 		printIOExplanationError(result);
@@ -51,36 +60,43 @@ int insertion()
 
 int main(int ac, char **av)
 {
-	int row;
 	initializeIO(av[1], av[2]);
-	int result;
 	uint32_t IPAddress;
-	int netmask;
-	int idx;
-	int out;
+	int netmask, idx, i, result, row;
 	struct timespec initialTime, finalTime;
 	double searchingTime;
-	int numberOfTableAccess;
-	int i;
+	int accessedTable;
+	int out = 0;
+	int totalProcessTime = 0;
+	int totalTableAccess = 0;
+	int totalPackets = 0;
 	
 	row = insertion();
 
-	while (!(result = readInputPacketFileLine(IPAddress))) {
-		for (i = 24; i < 0; i--) {
-			getNetmask(i, netmask);
+	while (!(result = readInputPacketFileLine(&IPAddress))) {
+		clock_gettime(CLOCK_MONOTONIC, &initialTime);
+		for (i = 24; i > 0; i--) {
+			getNetmask(i, &netmask);
 			idx = (netmask & IPAddress) >> 8;
 			if (!(Table1[idx] >> 15)) { // table2 doesn't exist
 				if (Table1[idx]) {
 					out = Table1[idx];
+					accessedTable = 1;
 					break;
 				}
 			}
 			else {
-				out = Table2[(Table1[idx] - 128) * 256 + IPAddress - ((IPAddress >> 8) << 8)];
+				out = Table2[(Table1[idx] - 32768) * 256 + IPAddress - ((IPAddress >> 8) << 8)];
+				accessedTable = 2;
+				break;
 			}
 		}
-		numberOfTableAccess = 24 - i + 1;
-		printOutputLine(IPAddress, out, &initialTime, &finalTime, &searchingTime, numberOfTableAccess);
+		clock_gettime(CLOCK_MONOTONIC, &finalTime);
+		printOutputLine(IPAddress, out, &initialTime, &finalTime, &searchingTime, accessedTable);
+		totalProcessTime += searchingTime;
+		totalTableAccess += accessedTable;
+		++totalPackets;
 	}
 	freeIO();
+	printSummary(totalPackets, (double)totalTableAccess / totalPackets, (double)totalProcessTime / totalPackets);
 }
